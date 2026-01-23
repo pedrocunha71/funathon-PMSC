@@ -1,0 +1,32 @@
+---
+title: "Funathon Project 1 – Introduction: Applying Machine Learning to Tabular Data"
+---
+
+The topic focuses on developing a fine-grained housing price prediction model. The main objective is to present the different components of the end-to-end process implemented to produce these predictions, including project structuring for production deployment .
+The presentation is organized into five parts:
+
+- 1. **Vizualisation of the input data** with an interactive map
+    - *Tools* : geopandas, folium
+- 2. **Pre-processing**: cleaning inconsistent input data, including the treatment of outliers and dataset preparation
+    - *Tools* : pandas / polars
+- 3. **Training a ML model to predict housing prices** : 
+    - *Tools*:
+        - **Scikit-learn** Python framwork for the training 
+        - Insee working document on bagging ans boosting methods [link](https://inseefrlab.github.io/DT_methodes_ensemblistes/) 
+        - python package crospint
+    - *Goal* : 
+        - create both training and test set
+        - train ML model (bagging / boosting) with scikit-learn
+        - train ML model with **crospint**
+        - evaluate model with metrics (see Olivier methods - OOB error)
+        - models comparisons
+- 4. **From training to production** : 
+    - Monitoring the model with **MLFlow** (save all *runs* ie. models and associated metrics)
+    - build an API with **FastAPI** to get the model forecasts and other high level considerations to have a production ready environment. It would allow to do the inference directly to get the prediction price from the API (for example : you would send 80m2 at 88 avenue Verdier Montrouge, 2 bedrooms, etc and you would get the predicted flat price).
+    - Visualize the predicted price and the underlying synthetic data on a map.
+    - *Tools*:
+        - **MLFlow**
+        - **FastAPI**
+        - **geopandas**
+        - **Argo WorkFlow** ?
+- 5. *optionnal* - generate the **synthetic data** that were used to train the model and consideration when creating synthetic data (how to be sure data represent real data but how to be sure that they are still synthetic, with QQPlot and others tools)
