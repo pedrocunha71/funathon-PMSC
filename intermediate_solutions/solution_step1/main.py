@@ -35,4 +35,19 @@ df["category"] = np.random.choice(["A", "B", "C"], size=len(df))
 # Add target
 df["target"] = y
 
+
 # %%
+# ============================================
+# STEP 2 — Preprocessing
+# ============================================
+
+# YOUR CODE HERE
+
+
+# %%
+# ============================================
+# STEP 3 — Train / test split, model fitting,
+#          and performance evaluation
+# ============================================
+
+# YOUR CODE HERE

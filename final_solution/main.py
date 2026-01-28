@@ -78,5 +78,33 @@ preprocessor = ColumnTransformer(
 #          and performance evaluation
 # ============================================
 
-# YOUR CODE HERE
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=RANDOM_STATE
+)
 
+# Full modeling pipeline
+model = Pipeline(
+    steps=[
+        ("preprocessing", preprocessor),
+        ("regressor", RandomForestRegressor(
+            n_estimators=200,
+            random_state=RANDOM_STATE,
+            n_jobs=-1
+        )),
+    ]
+)
+
+# Fit model
+model.fit(X_train, y_train)
+
+# Predictions
+y_pred = model.predict(X_test)
+
+# Evaluation
+rmse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"RMSE: {rmse:.3f}")
+print(f"R² score: {r2:.3f}")
+# %%
