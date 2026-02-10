@@ -13,21 +13,61 @@ from datetime import datetime, timedelta
 pl.Config.set_tbl_cols(-1)  # show all columns
 pl.Config.set_tbl_rows(50)  # show 20 rows
 # %%
-data = pl.read_parquet('s3://confpns/synthetic-transactions/rawdata/transactions_flats_final.parquet')
+data = pl.read_parquet('s3://confpns/synthetic-transactions/rawdata/transactions/transactions_flats_final.parquet')
 data
 # %%
+data2 = data.filter(
+            pl.col("ccodep")=="75"
+            ).select(["x", "y", "valeurfonc"]).with_columns(
+                valeurfonc_log=pl.col("valeurfonc").log(base=10)
+            )
+# %%
 (
-    p9.ggplot(data.filter(pl.col("ccodep")=="14", pl.col("anneemut")==2023).select(["x", "y"])) +
-    p9.aes("x","y")+
-    p9.geom_point()
+    p9.ggplot(
+        data2,
+        p9.aes("x","y", colour="valeurfonc_log")
+    ) +
+    p9.geom_point(size=0.05)+
+    p9.theme_matplotlib()
 )
 # %%
-# 1 ligne par vente ? 
-# où est adresse ? x,y sont identique par commune
-# dcntsol ?
+# Retrouver la mutation 
+(
+    p9.ggplot(
+        data.filter(
+            pl.col("x")>=-1.599, 
+            pl.col("x") <= -1.598, 
+            pl.col("y") >= 48.838, 
+            pl.col("y") <= 48.839, 
+            pl.col("valeurfonc") <=150000
+            ).select(["x", "y", "anneemut", "valeurfonc"]),
+        p9.aes("x","y", size="anneemut", colour="valeurfonc")
+        ) +
+    p9.geom_point() 
+)
 
-# 50218
-# 48.838630, -1.598313
+data.filter(
+            pl.col("x")>=-1.599, 
+            pl.col("x") <= -1.598, 
+            pl.col("y") >= 48.838, 
+            pl.col("y") <= 48.839, 
+            pl.col("valeurfonc") <=150000, 
+            pl.col("valeurfonc") >=100000
+            ).sort("anneemut")
+
+        # idmutation : "DVF+_3356048"
+
+# %%
+
+data_h = pl.read_parquet("s3://confpns/synthetic-transactions/rawdata/transactions/transactions_houses_final.parquet")
+
+# %%
+# Retrouver la mutation 
+data_h.filter(
+            pl.col("idmutation")=="DVF+_6242255"
+            ).glimpse()
+# %%
+
 
 # %%
 def analyse_colonnes(df: pl.DataFrame) -> pl.DataFrame:

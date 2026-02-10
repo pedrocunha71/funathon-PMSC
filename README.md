@@ -32,3 +32,19 @@ Repository of the 1st funathon project (tabular data)
 27.	dnbann : nombre de pièces annexes ;
 28.	dnbpdc : nombre de pièces ;
 29.	x, y : coordonnées géo.
+30. dnbniv : prend en compte le rdc
+
+10/02:
+quelles sont les déf de geaulc	gelelc	gesclc	ggazlc	gasclc	gchclc	gvorlc	gteglc	dniv	dcntsol	dcntagri	dcntnat  ??
+
+Fait : 
+- retrouver des transactions connues pour regarder les variables
+x, y : coordonnées géographiques semblent ok 
+
+Questions : 
+- pourquoi deux fichiers flat et houses ?
+- sélectionner un subset de variables parmi les 47 ?
+- les données au moment de la transaction ? Comment sont elles mises à jour ? 
+- comment détecter les ventes partielles de bien ? 
+- 1 ligne par vente ? 
+distance_ltm semble pas ok 
