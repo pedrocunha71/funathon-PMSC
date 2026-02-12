@@ -14,9 +14,16 @@ pl.Config.set_tbl_cols(-1)  # show all columns
 pl.Config.set_tbl_rows(50)  # show 20 rows
 # %%
 data = pl.read_parquet('s3://confpns/synthetic-transactions/rawdata/transactions/transactions_flats_final.parquet')
-data
 
 # %%
+
+data_h = pl.read_parquet("s3://confpns/synthetic-transactions/rawdata/transactions/transactions_houses_final.parquet")
+
+# %%
+if data.columns == data_h.columns:
+    data_all = pl.concat([data, data_h])
+# %%
+#| label: paris_transactions_all_plot
 (
     p9.ggplot(
         data.select(["ccodep", "x", "y", "valeurfonc"]).with_columns(
@@ -26,33 +33,38 @@ data
     ) +
     p9.geom_point(size=0.05)+
     p9.theme_matplotlib() +
-    p9.ggtitle("Localization of flat transactions in Paris with price")
+    p9.ggtitle("Localization of transactions (flat+houses) in Paris with price")
 )
 
 # %%
+#| label: all_transactions_plot
 (
     p9.ggplot(
-        data.select(["x", "y"]),
+        data_all.select(["x", "y"]),
         p9.aes("x","y")
     ) +
     p9.geom_point(size=0.01)+
     p9.theme_matplotlib() +
-    p9.ggtitle("Localization of flat transactions in France since 2010")
+    p9.ggtitle("Localization of transactions (flat+houses) in France since 2010")
 )
 # %%
+#| label: all_transactions_plot_hexag
+(
+    p9.ggplot(
+        data_all.select(["x", "y"])
+        .filter(
+            pl.col("x") >= -5,
+            pl.col("x") <= 20,
+            pl.col("y") >= 30,
+            pl.col("y") <= 60
+        ),
+        p9.aes("x","y")
+    ) +
+    p9.geom_point(size=0.01)+
+    p9.theme_matplotlib() +
+    p9.ggtitle("Localization of transactions (flat+houses) in France hexag since 2010")
+)
 
-# data.filter(
-#             pl.col("x") >= -1.599, 
-#             pl.col("x") <= -1.598, 
-#             pl.col("y") >= 48.838, 
-#             pl.col("y") <= 48.839, 
-#             pl.col("valeurfonc") <=230000, 
-#             pl.col("valeurfonc") >=175000
-#             ).sort("anneemut")
-
-# %%
-
-data_h = pl.read_parquet("s3://confpns/synthetic-transactions/rawdata/transactions/transactions_houses_final.parquet")
 
 # %%
 # Retrouver la mutation 
@@ -122,7 +134,7 @@ def analyse_colonnes(df: pl.DataFrame) -> pl.DataFrame:
 
 
 #%%
-descr_df = analyse_colonnes(data)
+descr_df = analyse_colonnes(data_all)
 #%%
 print(descr_df)
 
@@ -153,7 +165,7 @@ col_to_keep = (
 )
 col_to_keep
 # %%
-# label : stat-des_details_flat
+#| label : stat_des_details_flat
 (
     p9.ggplot(
         data
@@ -171,7 +183,22 @@ col_to_keep
 )
 
 # %%
-# label : stat-des_details_surf_flat
+#| label: stat_des_details_surf_flat_num
+(
+    data
+        .select([
+            "dcntsol",
+            "dcntnat",
+            "dcntagri"
+        ])
+        .unpivot()
+        .group_by("variable", "value")
+        .agg(pl.len())
+        .filter(pl.col("value")<10)
+        .sort("variable", "value")
+)
+# %%
+#| label : stat_des_details_surf_flat_plot
 
 (
     p9.ggplot(

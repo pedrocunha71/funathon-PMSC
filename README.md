@@ -107,12 +107,12 @@ que les vente dans le data set
 répartition valeurfonc pour détecter valeurs aberrantes/ Max est à 66,5M€. A été filtré avant ? 
 distance_ltm, distance_ltm_corr : distance au littoral
 dataset a bien été cleané avant. 99 is missing value ? 
-comprend les transactions en DOM (St Martin, Guadeloupe, mais pas celles en Alsace Moselle
+comprend les transactions en DOM (St Martin, Guadeloupe, mais pas celles en Alsace Moselle cf. all_transactions_plot)
 
 
 12/
-stat des de répartition des valeurs descriptives cf. stat-des_details_flat
-Quasiment que des 0 pour les flat cf. stat-des_details_surf_flat
+stat des de répartition des valeurs descriptives cf. stat_des_details_flat
+Quasiment que des 0 pour les flat cf. stat_des_details_surf_flat_num et stat_des_details_surf_flat_plot
 "dcntsol",
 "dcntnat",
 "dcntagri"
