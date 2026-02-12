@@ -105,5 +105,14 @@ stats des
 idnatmut = 1 tout le temps, pq ? 
 que les vente dans le data set
 répartition valeurfonc pour détecter valeurs aberrantes/ Max est à 66,5M€. A été filtré avant ? 
-distance_ltm, distance_ltm_corr : distance au littoral - osef
+distance_ltm, distance_ltm_corr : distance au littoral
 dataset a bien été cleané avant. 99 is missing value ? 
+comprend les transactions en DOM (St Martin, Guadeloupe, mais pas celles en Alsace Moselle
+
+
+12/
+stat des de répartition des valeurs descriptives cf. stat-des_details_flat
+Quasiment que des 0 pour les flat cf. stat-des_details_surf_flat
+"dcntsol",
+"dcntnat",
+"dcntagri"

@@ -15,14 +15,13 @@ pl.Config.set_tbl_rows(50)  # show 20 rows
 # %%
 data = pl.read_parquet('s3://confpns/synthetic-transactions/rawdata/transactions/transactions_flats_final.parquet')
 data
-# %%
-data2 = data.select(["ccodep", "x", "y", "valeurfonc"]).with_columns(
-                valeurfonc_log=pl.col("valeurfonc").log(base=10)
-            )
+
 # %%
 (
     p9.ggplot(
-        data2.filter(pl.col("ccodep")=="75"),
+        data.select(["ccodep", "x", "y", "valeurfonc"]).with_columns(
+                valeurfonc_log=pl.col("valeurfonc").log(base=10)
+            ).filter(pl.col("ccodep")=="75"),
         p9.aes("x","y", colour="valeurfonc_log")
     ) +
     p9.geom_point(size=0.05)+
@@ -33,17 +32,17 @@ data2 = data.select(["ccodep", "x", "y", "valeurfonc"]).with_columns(
 # %%
 (
     p9.ggplot(
-        data2,
+        data.select(["x", "y"]),
         p9.aes("x","y")
     ) +
-    p9.geom_point(size=0.05)+
+    p9.geom_point(size=0.01)+
     p9.theme_matplotlib() +
     p9.ggtitle("Localization of flat transactions in France since 2010")
 )
 # %%
 
 # data.filter(
-#             pl.col("x")>=-1.599, 
+#             pl.col("x") >= -1.599, 
 #             pl.col("x") <= -1.598, 
 #             pl.col("y") >= 48.838, 
 #             pl.col("y") <= 48.839, 
@@ -85,22 +84,22 @@ def analyse_colonnes(df: pl.DataFrame) -> pl.DataFrame:
 
         # Calcul de la médiane, mode, min, max, ou date moyenne
         if serie.dtype in (pl.Int8, pl.Int16, pl.Int32, pl.Int64, pl.Float32, pl.Float64):
-            mediane = serie.median()
+            median = serie.median()
             val_min = serie.min()
             val_max = serie.max()
         elif serie.dtype == pl.Date:
-            mediane = serie.median()
+            median = serie.median()
             val_min = serie.min()
             val_max = serie.max()
             # Calcul de la date moyenne
             dates = serie.drop_nulls().to_list()
             if dates:
                 avg_date = sum((d - datetime.min.date()).days for d in dates) / len(dates)
-                mediane = datetime.min.date() + timedelta(days=avg_date)
+                median = datetime.min.date() + timedelta(days=avg_date)
             else:
-                mediane = None
+                median = None
         else:  # Strings, booléens, etc.
-            mediane = serie.mode().first()
+            median = serie.mode().first()
             val_min = serie.min()
             val_max = serie.max()
 
@@ -111,10 +110,10 @@ def analyse_colonnes(df: pl.DataFrame) -> pl.DataFrame:
             "colonne": col,
             "type": str(serie.dtype),
             "total": n_total,
-            "nulles": n_null,
+            "nulls": n_null,
             "NaN": n_nan,
-            "valides": n_valid,
-            "médiane/mode": str(mediane),
+            "valid": n_valid,
+            "median/mode": str(median),
             "min": str(val_min),
             "max": str(val_max)
         })
@@ -154,12 +153,43 @@ col_to_keep = (
 )
 col_to_keep
 # %%
+# label : stat-des_details_flat
 (
-    p9.ggplot(data.select(["dnbniv", "dnbbai", 'nb_caves']).unpivot(), p9.aes(y='value', x='variable')) +
-    p9.geom_boxplot() +
+    p9.ggplot(
+        data
+        .select(col_to_keep)
+        .unpivot()
+        .group_by("variable", "value")
+        .agg((pl.len()/1000000).alias("count"))
+        .filter(pl.col("value")<10)
+        .cast({"value":pl.String}),
+        p9.aes(y="count", x="variable", fill="value")
+    ) +
+    p9.geom_col(position=p9.position_stack(reverse=True)) +
+    p9.theme_minimal() +
+    p9.coord_flip()
+)
+
+# %%
+# label : stat-des_details_surf_flat
+
+(
+    p9.ggplot(
+        data
+        .select([
+            "dcntsol",
+            "dcntnat",
+            "dcntagri"
+        ])
+        .unpivot()
+        .filter(pl.col("value")>0),
+        p9.aes("value")
+    ) +
+    p9.geom_histogram(bins = 25, fill='skyblue', color='black')  +
     p9.facet_wrap('~variable', scales='free') +
     p9.theme_minimal()
 )
+
 
 # %%
 # Plot price (log) - seems ok 
@@ -170,7 +200,7 @@ col_to_keep
             p9.aes(x='log_price')
     ) +
     p9.geom_histogram(bins = 100, fill='skyblue', color='black') +
-    p9.facet_grid('~variable.', scales='free') +
+    p9.facet_grid('~variable', scales='free') +
     p9.theme_minimal()
 )
 # %%
