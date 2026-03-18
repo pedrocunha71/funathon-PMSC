@@ -45,42 +45,57 @@ editor_options:
 
 # Introduction {.unnumbered}
 
-What is the project about? What data, what methods, what skills?
+The project focuses on predicting housing prices in the Paris area (Île-de-France region). 
+We will explore how to perform inference using only a limited number of data sources, specifically transaction records and cadastral data. 
+The reason for this choice is that data sources are widely available across many countries. 
+At the end of this project, you will be able to : 
+
+- prepare your training data;
+- train common machine learning (ML) models;
+- evaluate your models by choosing the most suited metric;
+- use some tools to ensure the reproductibility of the process (monitoring the model, deploy an API).
+
 
 # Structure of the project
 
-This project has five steps (listed in the banner at the top of the page):
+This project includes five steps (listed in the banner at the top of the page):
 
-- data generation;
-- data preprocessing;
-- model fitting and evaluation;
-- model logging with MLflow;
-- deployment.
+-   data generation : how to generate synthetic data from confidential data - this step can be skipped;
+-   data preprocessing : how to prepare data input for the training of ML models;
+-   model fitting and evaluation with two different models : Random Forest (RF) and Gradient Boosting (GB);
+-   model logging with MLflow;
+-   deployment.
+
+Every step is independant from the other : one will be able to start from the next step if a step is too difficult. 
 
 # Initialization of the project
 
 ## Clone the project with `Git` {{< fa brands git-alt >}}
 
 ::: {.callout-note appearance="simple"}
-## Attention
 
-Pour se lancer dans le sujet, commencer par ouvrir un service [Vscode-python](https://datalab.sspcloud.fr/launcher/ide/vscode-python). Pour éviter les problèmes plus tard, il faut impérativement modifier deux éléments de configuration du service:
+## Caution
 
--   Dans l'onglet *Networking* de la configuration, cocher la case "Enable a custom service port" ;
--   Dans l'onglet *Kubernetes* de la configuration, changer le rôle en `admin`.
+To launch in the project, open a VS Code service with the following button : <a href="https://datalab.sspcloud.fr/launcher/ide/vscode-python?name=vscode-acces-github&version=2.5.2&s3=region-79669f20&resources.requests.cpu=%C2%AB13800m%C2%BB&resources.requests.memory=%C2%AB74Gi%C2%BB&resources.limits.cpu=%C2%AB20900m%C2%BB&resources.limits.memory=%C2%AB155Gi%C2%BB&persistence.size=%C2%AB69Gi%C2%BB&kubernetes.role=%C2%ABadmin%C2%BB&vault.secret=%C2%ABcoicop_rag%C2%BB&git.token=%C2%AB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%C2%BB&git.repository=%C2%ABhttps%3A%2F%2Fgithub.com%2FInseeFrLab%2Fcoicop-rag.git%C2%BB&networking.user.enabled=true" target="_blank" rel="noopener" data-original-href="AUTOLAUNCH_URL_THERE"><img src="https://custom-icon-badges.demolab.com/badge/SSP%20Cloud-Launch_with_VSCode-blue?logo=vsc&amp;logoColor=white" alt="Onyxia"/></a>.
+
+To avoid problems later, you must modify two elements in the configuration of the service :
+
+-   In *Networking part of the form*, check the case "Enable a custom service port" ;
+-   In *Kubernetes part of the form*, change the role in `admin`.
 :::
 
-Create a VScode service on SSP Cloud. In the service, open a terminal by clicking on {{< fa brands fa-bars >}}, then `Terminal > New Terminal`. Clone the project repository with:
+Create a VScode-Python service on SSP Cloud. In the service, open a terminal by clicking on {{< fa brands fa-bars >}}, then `Terminal > New Terminal`. 
+Clone the project repository with:
 
-```         
+```{bash}           
 git clone https://github.com/AIML4OS/funathon-project1.git
 ```
 
-Le projet a la structure suivante :
+The project has the following structure :
 
--   The `.qmd` files and the `_quarto.yaml` file are necessary to build the website ;
--   The file `pyproject.toml` describes the dependencies of the project ;
--   Intermediate solutions to the exercices are available in the `intermediate_solutions` folder; 
+-   The `.qmd` files and the `_quarto.yaml` file are necessary to build the website;
+-   The file `pyproject.toml` describes the dependencies of the project (using uv);
+-   Intermediate solutions to the exercices are available in the `intermediate_solutions` folder;
 -   The final solution is available in the `final_solution` folder;
 -   TO BE COMPLETED DEPENDING ON THE PROJECT (`Dockerfile`, `kubernetes`...)/
 
@@ -88,15 +103,44 @@ Le projet a la structure suivante :
 
 Install the project dependencies by running the following command in the terminal:
 
-```         
+```{bash}         
 uv sync
 ```
 
+If you need to install a new package, run the following command :
+
+```{bash}           
+uv add <dependency_name>
+```
+
 ::: {.callout-note appearance="simple"}
+## Watch out !
 
-## Attention
+When running commands in the terminal, make sure you are working from the root of the Git repository.
 
-Pour toutes les opérations menées depuis le terminal,  il est important que vous vous placiez à la racine du dépôt Git. Vous pouvez vérifier dans quel dossier vous êtes placés en regardant l'invite de commande du terminal: celle-ci doit se terminer par `funathon2024_sujet3`. Si ce n'est pas le cas, modifier votre emplacement avec `cd`.
+You can verify your current location by checking the terminal prompt: it should end with *funathon2024_project1*. If it does not, navigate to the correct directory using the `cd` command.
 
+*For example* :
 
+-   **good path** ✅ :
+
+```{.bash}           
+onyxia@vscode-python-882151-0:~/work/funathon-project1$ 
+```
+
+-   **bad path** ❌ :
+
+```{.bash}           
+onyxia@vscode-python-882151-0:~/work$ 
+```
 :::
+
+## Python interpreter configuration
+
+After installing dependencies with `uv`, you need to configure the Python interpreter so that the installed packages are properly recognized. This will allow you to run Python scripts in parts, similar to working in a Jupyter notebook.
+
+To do this, open the command palette `Show and Run commands` then select **`Python: select interpreter`** , or press `Ctrl+Shift+P`. Finally, enter the following path, which corresponds to the Python interpreter generated by `uv` :
+
+```{bash}           
+/home/onyxia/work/funathon-project1/.venv/bin/python3.13
+```
