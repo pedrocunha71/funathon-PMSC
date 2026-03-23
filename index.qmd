@@ -219,12 +219,13 @@ The French territory is split in 18 regions (excluding the special case of overs
 Each region is made of departments (101 departments nationwide).
 Each department is identified with a unique non numeric **department code**, such as *75* for Paris or *2A* for southern Corsica. 
 
-The **official geographic code** — commonly referred to as the **Insee code** — is a unique five-digit identifier assigned by the National Institute of Statistics and Economic Studies ([Insee](https://www.insee.fr/en/metadonnees/source/serie/s2084)) to each city, commune, or administrative area. 
-This code allows to uniquely identify a city and remains constant even if the city’s name changes or if it merges with another municipality. 
-The two first digits of the code is the department code. 
-For example, for Montrouge the Insee code is 92049 and 92 is the department code of Hauts-de-Seine, where Montrouge is located. 
+The **official geographic code** — commonly referred to as the **Insee code** — is a unique five-digit identifier assigned by the National Institute of Statistics and Economic Studies ([Insee](https://www.insee.fr/en/metadonnees/source/serie/s2084)) to each city, department, region and other administrative area. 
+This code allows to uniquely identify a city (or equivalent) and remains constant even if the city’s name changes or if it merges with another municipality. 
+The two first digits of the city's Insee code is the department code. 
 You can find the full COG data and documentation here: [Insee - Code Officiel Géographique (COG)](https://www.insee.fr/fr/information/2560452) and in open data format here: [data.gouv.fr - Code Officiel Géographique (COG)](https://www.data.gouv.fr/datasets/code-officiel-geographique-cog).
 
-It means that if you search for a city with its Insee code on Google maps for example, Google maps won't find it as it uses the **zip code** (or postal code). The zip code is not a reliable identifier for a city as multiple cities share the same zip code, and a single city may have several zip codes depending on its districts or neighborhoods.
+It means that if you search for a city with its Insee code on Google maps for example, Google maps won't find it as it uses the **zip code** (or postal code).
+The zip code is not a reliable identifier for a city as multiple cities share the same zip code, and a single city may have several zip codes depending on its districts or neighborhoods.
 
 For example, the city of Paris is identified by the department code **75**, the Insee code **75056** (Paris itself), and is associated with multiple zip codes (e.g., **75001**, **75002**, etc.).
+Montrouge's Insee code is 92049 and 92 is the department code of Hauts-de-Seine, where Montrouge is located. 
