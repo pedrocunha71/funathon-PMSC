@@ -16,7 +16,7 @@ dict_fr_en = {
   'depcom':['prop_loc_',"Official city's code where the property is located", 'see remarks above'],  # COG : official geographical code https://www.insee.fr/en/metadonnees/source/serie/s2084
   'x':['prop_loc_x','Longitude where the property is located', 'see remarks above'],  # Type of projection ?
   'y':['prop_loc_y','Latitude where the property is located', 'see remarks above'],  # Type of projection ?
-  'distance_ltm (calculated)':['dist_tosea','Distance of the property to the nearest seashore - capped at 10km'],
+  'distance_ltm (calculated)':['dist_tosea','Distance of the property to the nearest seashore - capped at 10km', 'This variable has been calculated'],
   'distance_ltm_corr (calculated)':['dist_tosea_corr','Corrected distance of the property to the nearest seashore - capped at 10km'],
   'dnbniv':['n_floors','Number of floor in the property (building or house)', 'This variable is more reliable with houses than with buildings. Underground floors encoding is not fully harmonized and is often equal to 81 for minus 1, 82 for minus 2 ... It can also be encoded as 99, 98. A flat at the 2nd floor of a seven-floors building should be encoded with nth_floor=1 and n_floors=8 (ground floor and seven floors above ground level)'], # 0 to 90
   'dnbbai':['n_bath','Number of bathtubs reported in the property'],  # 0 to 41
@@ -61,8 +61,12 @@ col_expl = "Explanation and remarks"
 res = pd.DataFrame.from_dict(dict_fr_en, orient="index", columns=[col_label, col_full_name, col_expl]
     ).reset_index(names=col_label_fr).sort_values(col_label).fillna('')
 
-res[' '] = range(1, res.shape[0]+1)
+# Dropping some variables
+labels_to_drop = ["dist_tosea_corr"]
+res = res[~res[col_label].isin(labels_to_drop)]
 
+# Sorting
+res[' '] = range(1, res.shape[0]+1)
 with open('table_dict.Qmd', 'w') as f: 
     f.write(res[[" ", col_label, col_full_name, col_expl, col_label_fr]].to_markdown(index=False))
 
