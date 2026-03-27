@@ -1,36 +1,37 @@
 ---
-lang: fr-FR
-title: Training Random Forest model
+lang: en-US
+title: Training a Random Forest model
 
 format:
   html:
     number-sections: true
 ---
 
-In the first part of this project, we saw how to prepare data for model training: we reflected on which target variable to use, how to transform features, and how to use scikit-learn tools for pipeline construction. Now, we are going to see how to train a Random Forest model, covering both the theoretical background and its implementation.
+In the first part of this project, we prepared the data to train the model. We reflected on which target variable to use, how to transform features and how to use scikit-learn tools for pipeline construction. Now, we are going to train a Random Forest model, covering both the theoretical background and its implementation.
 
 **Random Forests** (RF) is a powerful and widely used ensemble method for classification and regression tasks. It combines the simplicity of decision trees and the sampling of observations and variables with the power of aggregation to improve predictive performance and reduce the risk of overfitting.
 
-An Insee working document on ensemble methods is available \[here\](<https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter2/3-random_forest.html>). If you are unfamiliar with ensemble methods, we recommend reading this document before processing.
+An Insee working document on ensemble methods is available [here](https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter2/3-random_forest.html). If you are unfamiliar with ensemble methods, we recommend reading this document before processing.
 
 ## Concepts of Random Forests
 
-**RF** extend \[bagging\](<https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter2/2-bagging.html>) by introducing an additional level of randomness: at each node, the splitting rule is determined using only a **randomly selected subset of features**. This further **reduces correlation between trees**, thereby **lowering the variance of the aggregated model's predictions**.
+**RF** extend [bagging](https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter2/2-bagging.html) by introducing an additional level of randomness: at each node, the splitting rule is determined using only a **randomly selected subset of features**. This further **reduces correlation between trees**, thereby **lowering the variance of the aggregated model's predictions**.
 
 So, RF rely on four key elements : building **aggregated regression or classification trees**, with a **randomized subset of features** and a ***bootstrap*** **sample** - a random sample drawn with or without replacement from the original dataset, typically of the same size.
 
-**You need to select several hyperparameters for training** (we cover the most important ones here) :\
-- **Number of trees** : this hyperparameter must be tuned - too few trees lead to higher prediction error, while too many trees increase computational time;\
-- **Number of randomly sampled candidate features** : use `sqrt` or `log2` to ensure true RF behavior;\
-- **Data sample rate** : useful to speed up training on large dataset, otherwise keep it close to `1.0`;\
-- **Minimum number of observation per leaf** (terminal node) : setting a higher value can reduce training time, generally without any performance loss
+**You need to select several hyperparameters for training** (we cover the most important ones here) :
 
-For more information, you can read the paragraph on RF hyperparameters \[here\](<https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter3/2-guide_usage_RF.html#sec-hyperparam-rf>)
+- **Number of trees** : this hyperparameter must be tuned - too few trees lead to higher prediction error, while too many trees increase computational time;
+- **Number of randomly sampled candidate features** : use `sqrt` or `log2` to ensure true RF behavior;
+- **Data sample rate** : useful to speed up training on large dataset, otherwise keep it close to `1.0`;
+- **Minimum number of observation per leaf** (terminal node) : setting a higher value can reduce training time, generally without any performance loss.
+
+For more information, you can read the paragraph on RF hyperparameters [here](https://inseefrlab.github.io/DT_methodes_ensemblistes/chapters/chapter3/2-guide_usage_RF.html#sec-hyperparam-rf)
 
 ::: {.callout-tip collapse="false" icon="false"}
-## \<i class="bi bi-book"\>\</i\> Exercice 4: Train your first Random Forest model
+## <i class="bi bi-book"></i> Exercice 4: Train your first Random Forest model
 
-1.  Using the `RandomForestRegressor` class and its \[scikit-learn documentation page\](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html), train a basic model with the following hyperparameters :
+1.  Using the `RandomForestRegressor` class and its [scikit-learn documentation page](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html), train a basic model with the following hyperparameters :
 
     -   n_estimators=50
 
@@ -119,7 +120,7 @@ Now that you understand what a RF is, try to tune its hyperparameters for traini
 
 One easy way to determine the optimal number of trees is to use the *Out-of-Bag* (OOB) error - an error estimate computed on the observations that were not sampled during bootstrap and therefore not used to train each individual tree. By tracking how this error evolves as trees are added, one can plot its convergence as a function of the number of trees.
 
-With the scikit-learn's default implementation, producing this plot is not straightforward : the training process is optimised for speed, and trees are grown in parallel, meaning intermediate OOB estimates are not natively exposed. We therefore need to write a custom function to compute and plot this convergence curve. You can see the documentation page on OOB error \[here\](<https://scikit-learn.org/stable/auto_examples/ensemble/plot_ensemble_oob.html>)
+With the scikit-learn's default implementation, producing this plot is not straightforward : the training process is optimised for speed, and trees are grown in parallel, meaning intermediate OOB estimates are not natively exposed. We therefore need to write a custom function to compute and plot this convergence curve. You can see the documentation page on OOB error [here](https://scikit-learn.org/stable/auto_examples/ensemble/plot_ensemble_oob.html)
 
 We will implement a function to plot the OOB error as a function of the number of trees in a RF model. To do so, you will need to :
 
@@ -361,7 +362,7 @@ param_grid = {
 }
 ```
 
-2.  Using the \[Grid Search documentation\](<https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html>), write the code to set up and run cross-validated hyperparameter tuning for the RF model
+2.  Using the [Grid Search documentation](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html), write the code to set up and run cross-validated hyperparameter tuning for the RF model
 
 ```{python}
 #| code-fold: true
@@ -414,7 +415,7 @@ Congrats ! You have optimized your RF model. Now, you need to evaluate its accur
 :::
 
 ::: {.callout-tip collapse="false"}
-## \<i class="bi bi-book"\>\</i\> Exercice 6: Model evaluation
+## <i class="bi bi-book"></i> Exercice 6: Model evaluation
 
 Now that your model has been optimized, it is time to rigorously evaluate its performance on the test set — data the model has never seen during training. This step is essential to assess how well your model generalizes to new observations.
 
