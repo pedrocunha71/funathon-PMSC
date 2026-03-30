@@ -39,9 +39,9 @@ For more information, you can read the paragraph on RF hyperparameters [here](ht
 
     -   min_samples_leaf=10
 
-Update the preprocessing pipeline with this new model. 
+It's a first step, we'll go back and chain it with the preprocessing pipeline afterwards. 
 
-Train the model (it should take about 10 minutes to train). 
+Train the model (it should take about 5 minutes to train). 
 
         <details>
 
@@ -68,65 +68,14 @@ rf = RandomForestRegressor(
     oob_score=True # for calculating total oob error for the RF
 )
 
-# Update the pipeline 
-rf_pipeline = Pipeline([
-    ('preprocessing', preprocessor),
-    ('random_forests', rf)
-])
-
-model = TransformedTargetRegressor(
-    regressor=rf_pipeline,
-    transformer=y_transformer
-)
 
 # Train the model with train set
-model.fit(X_train, y_train)
+rf.fit(X_train, y_train)
 ```
 
 2.  Print the `Out-of-Bag` error *(the concept of OOB error will be covered in the next exercise)*.
 
 
-::: {.callout-tip}
-Scikit-learn allows you to access every step of the pipeline with `model`'s attributes. For example, to access the transformer you would type `model.transformer` and to access the regressor you would type `model.regressor`. 
-
-
-```python
-model.regressor   # allows to access the unfitted pipeline defined with rf_pipeline
-```
-
-To access one of the two steps defined in the rf_pipeline (preprocessing or random_forests), they are stored in the dictionnary `model.regressor`. 
-
-```python
-model.regressor["preprocessing"]   # access to the first step
-model.regressor["random_forests"]   # access to the second step
-```
-
-:::
-
-::: {.callout-important}
-Scikit-learn  distinguishes **parameters** from **fitted attributes**. Here, when we define the `model` step : 
-
-- `regressor` is the parameter we pass **before** fitting. It's the estimator we configure.
-- `regressor_` is the attribute set **after** calling `.fit()`. It's a clone of `regressor` that has been actually trained on data.
-
-The `_` suffix is a consistent scikit-learn convention: any attribute that only exists after fitting ends with `_` (e.g., `coef_`, `n_features_in_`, `classes_`). It signals "this was learned from data."
-
-```python
-model.regressor_  # allows you to access the fitted clone of rf_pipeline (after model.fit())
-```
-
-To access the attributes sent back by the training phase listed in the documentation, you therefore need to call 
-
-```python
-# This would fail — the original rf_pipeline is unfitted
-model.regressor['random_forests'].oob_score_  # AttributeError
-
-# Access the fitted RF (has .feature_importances_, .oob_score_, etc.)
-fitted_rf = model.regressor_['random_forests']
-
-```
-
-:::
 
 
 ```{python}
@@ -135,7 +84,7 @@ fitted_rf = model.regressor_['random_forests']
 #| code-overflow: scroll
 #| eval: false
 
-model.regressor_['random_forests'].oob_score_
+rf.oob_score_
 ```
 
 
@@ -161,7 +110,7 @@ model.regressor_['random_forests'].oob_score_
 from sklearn.metrics import mean_squared_error
 
 # Predictions on train set
-y_pred = model.predict(X_test)
+y_pred = rf.predict(X_test)
 
 # Print the error
 print(mean_squared_error(y_test, y_pred))
@@ -190,40 +139,24 @@ We will implement a function to plot the OOB error as a function of the number o
 
 -   plot the OOB error for each RF model to visualize the convergence.
 
-1.  Subsample a fraction ( `0.1` ) of the dataset to reduce computation time.
+1.  Subsample a fraction ( `0.1` ) of the `df` dataset to reduce computation time and define X_train, X_test, y_train and y_test.
 
 ```{python}
 #| code-fold: true
 #| code-summary: Cliquer pour voir la réponse
 #| code-overflow: scroll
 #| eval: false
-import numpy as np
 
-subsample = 0.1 # 10% of the dataset for the plot
+df_sampled = df.sample(frac=0.1, axis=0, random_state= RANDOM_STATE)
 
-y_arr = np.asarray(y_train)
-bins = np.unique(np.quantile(y_arr, np.linspace(0, 1, 100)))
-strata = np.digitize(y_arr, bins[1:-1])
+# Split features / target
+X = df.drop(columns="valfonc_m2")  # X must contain only the features we'll learn from
+y = df["valfonc_m2"]  # target must be a dataframe with 1 column
 
-rng = np.random.default_rng(rf_params.get("random_state"))
-idx = np.concatenate([
-    rng.choice(
-        np.where(strata == s)[0],
-        size=max(1, round((strata == s).sum() * subsample)),
-        replace=False,
-    )
-    for s in np.unique(strata)
-])
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=RANDOM_STATE
+)
 
-X_sub = X_train[idx] if isinstance(X_train, np.ndarray) else X_train.iloc[idx]
-y_sub = y_arr[idx]
-
-# Treatment of Timestamp (not done outside the pipeline)
-X_sub["datemut"] = date_to_days(X_sub["datemut"], pd.Timestamp('2010-01-01 00:00'))
-X_sub = _encode_for_rf(X_sub)
-
-print(f"Subset : {len(idx):,} / {len(y_arr):,} obs "
-      f"({100 * len(idx) / len(y_arr):.1f}%)")
 ```
 
 2.  Train multiple RF models with varying numbers of trees, using `warm_start=True` to avoid retraining all trees from scratch at each iteration. Keep the OOB error calculated in a list.
@@ -234,6 +167,7 @@ print(f"Subset : {len(idx):,} / {len(y_arr):,} obs "
 #| code-overflow: scroll
 #| eval: false
 import warnings 
+import numpy as np
 
 metric = "r2"
 min_estimators=5
@@ -458,6 +392,20 @@ print(grid_search.best_params_)
 4.  From the fitted `grid_search` object, retrieve the best model and and retrain it on the full training set
 
 > Note : Which type is `best_estimator_` attribute ?
+
+
+::: {.callout-important}
+Scikit-learn  distinguishes **original parameters** from **fitted attributes with a trailing _**. The `_` suffix is a consistent scikit-learn convention: any attribute that only exists after fitting ends with `_` (e.g., `coef_`, `n_features_in_`, `classes_`). It signals "this was learned from data."
+
+```python
+grid_search.myregressor_  
+```
+
+To access the attributes sent back by the training phase listed in the documentation, you therefore need to call 
+
+
+:::
+
 
 ```{python}
 #| code-fold: true
