@@ -141,54 +141,46 @@ We use the same `X_train`, `X_test`, `y_train`, `y_test` splits defined in the p
 :::: {.callout-tip collapse="false" icon="false"}
 ## <i class="bi bi-book"></i> Exercice 8: Tuning Gradient Boosting hyperparameters
 
-### Step 1 — Optimise the learning rate
+### Step 1 — Jointly optimise the number of trees and the learning rate
 
-1.  Write a helper function `gb_scores` that, given a fitted `HistGradientBoostingRegressor` and the four arrays `X_train`, `y_train`, `X_test`, `y_test`, returns a dictionary with RMSE, MAE and R² for both the training and test sets.
+
+0.  For convenience, we dropped the features `dteloc`, `dtemut` and trained our model on absolute prices and not on the transformed ones. Get them back and define the new training and testing datasets `X_train, X_test, y_train, y_test`. Update the definition of our Pipeline with a Gradient Boosting model. 
 
 ```{python}
 #| code-fold: true
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-import numpy as np
 
-def gb_scores(model, X_train, y_train, X_test, y_test):
-    """
-    Compute RMSE, MAE and R² on train and test sets.
+# Split features / target
+X = df.drop(columns="valfonc_m2")  
+y = df["valfonc_m2"]  
 
-    Returns:
-        dict with keys 'train' and 'test', each containing
-        a dict with keys 'RMSE', 'MAE', 'R2'.
-    """
-    results = {}
-    for label, X, y in [("train", X_train, y_train), ("test", X_test, y_test)]:
-        y_pred = model.predict(X)
-        results[label] = {
-            "RMSE": np.sqrt(mean_squared_error(y, y_pred)),
-            "MAE" : mean_absolute_error(y, y_pred),
-            "R2"  : r2_score(y, y_pred),
-        }
-    return results
+# Split train / test set
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=RANDOM_STATE
+)
+
+gb_pipeline = Pipeline([
+    ('preprocessing', preprocessor),
+    ('GB', HistGradientBoostingRegressor(random_state=RANDOM_STATE))
+])
+
+model = TransformedTargetRegressor(
+    regressor=gb_pipeline,
+    transformer=y_transformer
+)
+
 ```
 
-2.  Train one `HistGradientBoostingRegressor` for each value in `learning_rates = [0.05, 0.1, 0.2, 0.3, 0.5]`. Create a `tune_lr` function which takes a list of learning rates as input and train each time a model. For each model, enable **early stopping** by setting `early_stopping=True`, `validation_fraction=0.1` and `n_iter_no_change=20`, and set `max_iter=1000` so that the algorithm has room to converge. Record the train and test scores using the function defined above and return the results. Computation should last about 7 minutes. 
+1.  Define the parameter grid for `max_iter` and `learning_rate`, then run a `GridSearchCV` with 4 folds, `scoring="r2"` and `return_train_score=True`. Use `n_jobs=-1` to parallelise the search.
 
     ::: {.callout-tip collapse="true" title="Click to view a hint"}
-    You can iterate over `learning_rates` and build a results list of the form:
+    When using `GridSearchCV`, the parameter names must match those of the estimator passed to it. Here we pass a `HistGradientBoostingRegressor` directly, so names are simply `max_iter` and `learning_rate`.
 
-    ```python
-    all_results.append({
-        "learning_rate": lr,
-        "n_iter": model.n_iter_,  # actual number of trees used
-        "train_rmse": ...,
-        "test_rmse":  ...,
-        "train_r2":   ...,
-        "test_r2":    ...,
-    })
-    ```
-
-    `n_iter_` is the fitted attribute that stores the number of trees actually trained (after early stopping).
+    To retrieve all fold scores after fitting, use `cv_results_` — it is a dict that contains `mean_train_score`, `mean_test_score`, and the corresponding parameter values.
     :::
 
 ```{python}
@@ -196,42 +188,54 @@ def gb_scores(model, X_train, y_train, X_test, y_test):
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-from sklearn.ensemble import HistGradientBoostingRegressor
 
+param_grid_step1 = {
+    "regressor__GB__max_iter"     : [200, 500, 1000],
+    "regressor__GB__learning_rate": [0.1, 0.15, 0.2],
+}
 
-def tune_lr(learning_rates: list):
-    lr_results = []
-    for lr in learning_rates:
-        model = HistGradientBoostingRegressor(
-            learning_rate=lr,
-            max_iter=1000,
-            early_stopping=True,
-            validation_fraction=0.1,
-            n_iter_no_change=20,
-            random_state=RANDOM_STATE,
-        )
-        model.fit(X_train, y_train)
+gs_step1 = GridSearchCV(
+    estimator=model,
+    param_grid=param_grid_step1,
+    cv=4,
+    scoring="r2",
+    return_train_score=True,
+    n_jobs=-1,
+    verbose=1,
+)
+gs_step1.fit(X_train, y_train)
 
-        scores = gb_scores(model, X_train, y_train, X_test, y_test)
-        lr_results.append({
-            "learning_rate": lr,
-            "n_iter"       : model.n_iter_,
-            "train_rmse"   : scores["train"]["RMSE"],
-            "test_rmse"    : scores["test"]["RMSE"],
-            "train_r2"     : scores["train"]["R2"],
-            "test_r2"      : scores["test"]["R2"],
-        })
-        print(
-            f"lr={lr:.2f}  |  trees={model.n_iter_:4d}"
-            f"  |  train R²={scores['train']['R2']:.4f}"
-            f"  |  test R²={scores['test']['R2']:.4f}"
-        )
-    return lr_results
-
-lr_results = diff_lr([0.05, 0.1, 0.2, 0.3, 0.5])
+print("Best params :", gs_step1.best_params_)
+print(f"Best CV R²  : {gs_step1.best_score_:.4f}")
 ```
 
-3.  Plot the train and test **R²** scores for each learning rate. Which learning rate do you choose?
+2.  Retrieve the cross-validation results as a DataFrame and display the mean train and validation R² for each combination, sorted by descending validation R².
+
+```{python}
+#| code-fold: true
+#| code-summary: See the solution
+#| code-overflow: scroll
+#| eval: false
+df_step1 = pd.DataFrame(gs_step1.cv_results_)[[
+    "param_max_iter",
+    "param_learning_rate",
+    "mean_train_score",
+    "mean_test_score",
+]].rename(columns={
+    "param_max_iter"      : "max_iter",
+    "param_learning_rate" : "learning_rate",
+    "mean_train_score"    : "train_r2",
+    "mean_test_score"     : "val_r2",
+})
+
+print(df_step1.sort_values("val_r2", ascending=False).to_string(index=False))
+```
+
+::: callout-important
+In scikit-learn's `GridSearchCV`, the column `mean_test_score` refers to the **cross-validation score** computed on the held-out fold at each split — **not** to a score on `X_test`. The naming can be confusing: "test" here means "not used for training this fold". To avoid ambiguity we rename this column `val_r2` in the results DataFrame.
+:::
+
+3.  Plot the mean train and validation R² as a function of `max_iter`, with one line per `learning_rate`. What do you observe about the interplay between the two hyperparameters?
 
 ```{python}
 #| code-fold: true
@@ -239,134 +243,126 @@ lr_results = diff_lr([0.05, 0.1, 0.2, 0.3, 0.5])
 #| code-overflow: scroll
 #| eval: false
 import matplotlib.pyplot as plt
-import pandas as pd
 
-def plot_lr(lr_results):
-    df_lr = pd.DataFrame(lr_results)
+learning_rates = param_grid_step1["learning_rate"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4), sharey=False)
+fig, axes = plt.subplots(1, 2, figsize=(13, 4), sharey=True)
 
-    # R² plot
-    ax = axes[0]
-    ax.plot(df_lr["learning_rate"], df_lr["train_r2"], marker="o", label="Train R²")
-    ax.plot(df_lr["learning_rate"], df_lr["test_r2"],  marker="s", label="Test R²",
-            linestyle="--")
-    ax.set_xlabel("Learning rate")
+for lr in learning_rates:
+    subset = df_step1[df_step1["learning_rate"] == lr].sort_values("max_iter")
+    axes[0].plot(subset["max_iter"], subset["train_r2"], marker="o", label=f"lr={lr}")
+    axes[1].plot(subset["max_iter"], subset["val_r2"],   marker="o", label=f"lr={lr}")
+
+for ax, title in zip(axes, ["Mean Train R² (CV)", "Mean Validation R² (CV)"]):
+    ax.set_xlabel("max_iter (number of trees)")
     ax.set_ylabel("R²")
-    ax.set_title("R² by learning rate")
-    ax.legend()
+    ax.set_title(title)
+    ax.legend(title="learning_rate", fontsize=8)
     ax.grid(True, linestyle=":")
 
-    # Number of trees plot (informative: shows trade-off with learning rate)
-    ax = axes[1]
-    ax.bar(df_lr["learning_rate"].astype(str), df_lr["n_iter"], color="steelblue",
-        width=0.5)
-    ax.set_xlabel("Learning rate")
-    ax.set_ylabel("Number of trees (n_iter_)")
-    ax.set_title("Trees used after early stopping")
-    ax.grid(True, linestyle=":", axis="y")
-
-    plt.tight_layout()
-    plt.show()
-
-plot_lr(lr_results)
-# Best learning rate
-best_lr_row = df_lr.loc[df_lr["test_r2"].idxmax()]
-BEST_LR = best_lr_row["learning_rate"]
-print(f"\nBest learning rate: {BEST_LR}  "
-      f"(test R²={best_lr_row['test_r2']:.4f}, "
-      f"trees={int(best_lr_row['n_iter'])})")
+fig.suptitle("Step 1 — Joint optimisation of max_iter and learning_rate", fontsize=12)
+plt.tight_layout()
+plt.show()
 ```
 
-### Step 2 — Optimise the tree structure
-
-4.  Using the best learning rate selected in the previous step, train one model for each combination of `max_leaf_nodes` and `min_samples_leaf` values defined below. Keep early stopping enabled with the same settings. Record and display train/test scores.
+    > If the best value of `max_iter` is the largest value tested (1000), consider extending the grid before moving to the next step.
 
 ```{python}
 #| code-fold: true
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-from itertools import product
+BEST_ITER = gs_step1.best_params_["max_iter"]
+BEST_LR   = gs_step1.best_params_["learning_rate"]
+```
 
-max_leaf_nodes_values = [15, 31, 63]
-min_samples_leaf_values = [10, 20, 50]
+### Step 2 — Jointly optimise the tree structure
 
-tree_results = []
+4.  Fix `max_iter` and `learning_rate` to the best values found in step 1, then run a second `GridSearchCV` over `max_depth` and `min_samples_leaf`. Keep the same `cv`, `scoring` and `return_train_score` settings.
 
-for n_leaves, min_leaf in product(max_leaf_nodes_values, min_samples_leaf_values):
-    model = HistGradientBoostingRegressor(
+```{python}
+#| code-fold: true
+#| code-summary: See the solution
+#| code-overflow: scroll
+#| eval: false
+param_grid_step2 = {
+    "max_depth"       : [3, 5, 8, None],  # None = no depth limit
+    "min_samples_leaf": [10, 20, 50],
+}
+
+gs_step2 = GridSearchCV(
+    estimator=HistGradientBoostingRegressor(
+        max_iter=BEST_ITER,
         learning_rate=BEST_LR,
-        max_iter=1000,
-        max_leaf_nodes=n_leaves,
-        min_samples_leaf=min_leaf,
-        early_stopping=True,
-        validation_fraction=0.1,
-        n_iter_no_change=20,
         random_state=RANDOM_STATE,
-    )
-    model.fit(X_train, y_train)
+    ),
+    param_grid=param_grid_step2,
+    cv=4,
+    scoring="r2",
+    return_train_score=True,
+    n_jobs=-1,
+    verbose=1,
+)
+gs_step2.fit(X_train, y_train)
 
-    scores = gb_scores(model, X_train, y_train, X_test, y_test)
-    tree_results.append({
-        "max_leaf_nodes"  : n_leaves,
-        "min_samples_leaf": min_leaf,
-        "n_iter"          : model.n_iter_,
-        "train_rmse"      : scores["train"]["RMSE"],
-        "test_rmse"       : scores["test"]["RMSE"],
-        "train_r2"        : scores["train"]["R2"],
-        "test_r2"         : scores["test"]["R2"],
-    })
-
-df_tree = pd.DataFrame(tree_results)
-print(df_tree.sort_values("test_r2", ascending=False).to_string(index=False))
+print("Best params :", gs_step2.best_params_)
+print(f"Best CV R²  : {gs_step2.best_score_:.4f}")
 ```
 
-5.  Plot the train and test **R²** scores for each hyperparameter combination, to identify which configurations lead to overfitting.
-
-    ::: {.callout-tip collapse="true" title="Click to view a hint"}
-    A clear way to visualise this is to use a **grouped bar chart** or to create one subplot per value of `max_leaf_nodes`, showing train/test R² on the x-axis for each value of `min_samples_leaf`.
-    :::
+5.  Retrieve the cross-validation results as a DataFrame and plot the mean train and validation R² for each combination. Use one subplot per `max_depth` value, with `min_samples_leaf` on the x-axis. Which combinations show signs of overfitting?
 
 ```{python}
 #| code-fold: true
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-fig, axes = plt.subplots(
-    1, len(max_leaf_nodes_values),
-    figsize=(14, 4),
-    sharey=True,
+import numpy as np
+
+df_step2 = pd.DataFrame(gs_step2.cv_results_)[[
+    "param_max_depth",
+    "param_min_samples_leaf",
+    "mean_train_score",
+    "mean_test_score",
+]].rename(columns={
+    "param_max_depth"        : "max_depth",
+    "param_min_samples_leaf" : "min_samples_leaf",
+    "mean_train_score"       : "train_r2",
+    "mean_test_score"        : "val_r2",
+})
+
+# Replace None with the string "None" for display
+df_step2["max_depth"] = df_step2["max_depth"].apply(
+    lambda x: "None" if x is None else x
 )
 
-for ax, n_leaves in zip(axes, max_leaf_nodes_values):
-    subset = df_tree[df_tree["max_leaf_nodes"] == n_leaves].copy()
+depth_labels = df_step2["max_depth"].unique()
+
+fig, axes = plt.subplots(1, len(depth_labels), figsize=(14, 4), sharey=True)
+
+for ax, depth_label in zip(axes, depth_labels):
+    subset = df_step2[df_step2["max_depth"] == depth_label].copy()
     x = np.arange(len(subset))
     width = 0.35
 
-    ax.bar(x - width / 2, subset["train_r2"], width, label="Train R²",
+    ax.bar(x - width / 2, subset["train_r2"], width, label="Train R² (CV)",
            color="steelblue")
-    ax.bar(x + width / 2, subset["test_r2"],  width, label="Test R²",
+    ax.bar(x + width / 2, subset["val_r2"],   width, label="Val R² (CV)",
            color="tomato")
     ax.set_xticks(x)
     ax.set_xticklabels(subset["min_samples_leaf"].astype(str))
     ax.set_xlabel("min_samples_leaf")
-    ax.set_title(f"max_leaf_nodes = {n_leaves}")
+    ax.set_title(f"max_depth = {depth_label}")
     ax.legend(fontsize=8)
     ax.grid(True, linestyle=":", axis="y")
 
 axes[0].set_ylabel("R²")
-fig.suptitle("Train vs. Test R² — tree structure hyperparameters", fontsize=12)
+fig.suptitle("Step 2 — Joint optimisation of max_depth and min_samples_leaf",
+             fontsize=12)
 plt.tight_layout()
 plt.show()
 
-# Best combination
-best_tree_row = df_tree.loc[df_tree["test_r2"].idxmax()]
-BEST_LEAVES   = int(best_tree_row["max_leaf_nodes"])
-BEST_MIN_LEAF = int(best_tree_row["min_samples_leaf"])
-print(f"\nBest combination: max_leaf_nodes={BEST_LEAVES}, "
-      f"min_samples_leaf={BEST_MIN_LEAF}  "
-      f"(test R²={best_tree_row['test_r2']:.4f})")
+BEST_DEPTH    = gs_step2.best_params_["max_depth"]
+BEST_MIN_LEAF = gs_step2.best_params_["min_samples_leaf"]
 ```
 
 ### Step 3 — Optimise the regularisation parameters
