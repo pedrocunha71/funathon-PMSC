@@ -54,6 +54,7 @@ To allow for comparison with the random forest section, we chose to use the same
 #| code-overflow: scroll
 #| eval: false
 from sklearn.ensemble import HistGradientBoostingRegressor
+
 X = df.drop(columns=["valfonc_m2", "datemut", "dteloc"]) 
 y = df["valfonc_m2"]
 X_train, X_test, y_train, y_test = train_test_split(
@@ -61,6 +62,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     test_size=0.2,
     random_state=RANDOM_STATE
 )
+
 gb_baseline = HistGradientBoostingRegressor(random_state=RANDOM_STATE)
 gb_baseline.fit(X_train, y_train)
 ```
@@ -77,12 +79,16 @@ gb_baseline.fit(X_train, y_train)
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 
-for split, X, y in [("Train", X_train, y_train), ("Test", X_test, y_test)]:
-    y_pred = gb_baseline.predict(X)
-    rmse = np.sqrt(mean_squared_error(y, y_pred))
-    mae = mean_absolute_error(y, y_pred)
-    r2  = r2_score(y, y_pred)
-    print(f"{split} — RMSE: {rmse:.2f}  |  MAE: {mae:.2f}  |  R²: {r2:.4f}")
+def print_metrics(model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test):
+
+    for split, X, y in [("Train", X_train, y_train), ("Test", X_test, y_test)]:
+        y_pred = model.predict(X)
+        rmse = np.sqrt(mean_squared_error(y, y_pred))
+        mae = mean_absolute_error(y, y_pred)
+        r2  = r2_score(y, y_pred)
+        print(f"{split} — RMSE: {rmse:.2f}  |  MAE: {mae:.2f}  |  R²: {r2:.4f}")
+
+print_metrics(gb_baseline)
 ```
 
 3.  How does the default Gradient Boosting model compare with the best Random Forest model from Exercise 6?
@@ -177,7 +183,10 @@ model = TransformedTargetRegressor(
 
 ```
 
-1.  Define the parameter grid for `max_iter` and `learning_rate`, then run a `GridSearchCV` with 4 folds, `scoring="r2"` and `return_train_score=True`. Use `n_jobs=-1` to parallelise the search. The grid search can take some time to compute (for example, about 40 minutes for 36 iterations) so don't choose max_iter above 1000 and more than 2 and 2 sets of values. 
+1.  Define the parameter grid for `max_iter` and `learning_rate`, then run a `GridSearchCV` with 2 folds (to speed-up training time), `scoring="r2"` and `return_train_score=True`. Use `n_jobs=-1` to parallelise the search. 
+
+
+> The grid search can take some time to compute (for example, about 40 minutes for 36 iterations) so don't choose max_iter above 1000 and more than 2 and 2 sets of values. 
 
     ::: {.callout-tip collapse="true" title="Click to view a hint"}
     When using `GridSearchCV`, the parameter names must match those of the estimator passed to it. Here we pass a `HistGradientBoostingRegressor` directly, so names are simply `max_iter` and `learning_rate`.
@@ -199,7 +208,7 @@ param_grid_step1 = {
 gs_step1 = GridSearchCV(
     estimator=model,
     param_grid=param_grid_step1,
-    cv=4,
+    cv=2,
     scoring="r2",
     return_train_score=True,
     n_jobs=-1,
@@ -211,7 +220,7 @@ print(f"Best params : {gs_step1.best_params_}")
 print(f"Best CV R² : {gs_step1.best_score_:.4f}")
 ```
 
-2.  Retrieve the cross-validation results as a DataFrame and display the mean train and validation R² for each combination, sorted by descending validation R².
+2.  Retrieve the cross-validation results as a DataFrame and display the mean train and validation R² for each combination, sorted by descending validation R². Make it a function called `results_to_df` which takes as input the cross-validation results and returns the sorted dataframe.
 
 ```{python}
 #| code-fold: true
@@ -239,7 +248,7 @@ df_step1 = results_to_df(gs_step1.cv_results_)
 In scikit-learn's `GridSearchCV`, the column `mean_test_score` refers to the **cross-validation score** computed on the held-out fold at each split — **not** to a score on `X_test`. The naming can be confusing: "test" here means "not used for training this fold". To avoid ambiguity we rename this column `val_r2` in the results DataFrame.
 :::
 
-3.  Plot the mean train and validation R² on a single plot, with one line per `learning_rate`. What do you observe about the interplay between the two hyperparameters? What value for the learning rate and the number of tree do you chose, taking into consideration computation efficiency ? 
+3.  Plot the mean train and validation R² on a single plot, with one line per `learning_rate`. Make it a function called `def plot_results_cv` which takes as input the hyperparameter to put on the X axis and the results as a dataframe from previous function. What do you observe about the interplay between the two hyperparameters? What value for the learning rate and the number of tree do you chose, taking into consideration computation efficiency ? 
 
 ```{python}
 #| code-fold: true
@@ -314,7 +323,7 @@ model_step2 = TransformedTargetRegressor(
 gs_step2 = GridSearchCV(
     estimator=model_step2,
     param_grid=param_grid_step2,
-    cv=4,
+    cv=2,
     scoring="r2",
     return_train_score=True,
     n_jobs=-1,
@@ -327,7 +336,7 @@ print(f"Best params : {gs_step2.best_params_}")
 print(f"Best CV R² : {gs_step2.best_score_:.4f}")
 ```
 
-5.  Retrieve the cross-validation results as a DataFrame and plot the mean train and validation R² for each combination. Use one subplot per `max_depth` value, with `min_samples_leaf` on the x-axis. Which combinations show signs of overfitting?
+5.  Using our pre-defined functions, retrieve the cross-validation results as a DataFrame and plot the mean train and validation R² for each combination. Which combinations show signs of overfitting?
 
 ```{python}
 #| code-fold: true
@@ -346,7 +355,7 @@ BEST_MIN_LEAF = gs_step2.best_params_["regressor__GB__min_samples_leaf"]
 
 ### Step 3 — Optimise the regularisation parameters
 
-6.  Using the best hyperparameters found in steps 1 and 2, train one model for each value of `l2_regularization` in the list below. Plot train and test **R²** scores. Does regularisation help reduce the gap between train and test performance?
+6.  Using the best hyperparameters found in steps 1 and 2, train one model for each value of `l2_regularization` in `[0.0, 0.1, 0.3, 0.5, 1.0]`. To use our predefined function, make it as if it was a cross validation with `max_iter` set to the above chosen value. Using our pre-defined function, plot the result. Does regularisation help reduce the gap between train and test performance?
 
 ```{python}
 #| code-fold: true
@@ -379,7 +388,7 @@ model_step3 = TransformedTargetRegressor(
 gs_step3 = GridSearchCV(
     estimator=model_step3,
     param_grid=param_grid_step3,
-    cv=4,
+    cv=2,
     scoring="r2",
     return_train_score=True,
     n_jobs=-1,
@@ -391,7 +400,7 @@ gs_step3.fit(X_train, y_train)
 df_step3 = results_to_df(gs_step3.cv_results_)
 plot_results_cv("l2_regularization", df_step3)
 
-print("Best params :", gs_step3.best_params_)
+print(f"Best params : {gs_step3.best_params_}")
 print(f"Best CV R² : {gs_step3.best_score_:.4f}")
 
 
@@ -408,9 +417,6 @@ BEST_L2 = gs_step3.best_params_["regressor__GB__l2_regularization"]
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-from sklearn.pipeline import Pipeline
-from sklearn.compose import TransformedTargetRegressor
-import numpy as np
 
 gb_final = HistGradientBoostingRegressor(
     max_iter=BEST_ITER,
