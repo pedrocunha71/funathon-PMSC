@@ -61,8 +61,8 @@ X_train, X_test, y_train, y_test = train_test_split(
     test_size=0.2,
     random_state=RANDOM_STATE
 )
-gb = HistGradientBoostingRegressor(random_state=RANDOM_STATE)
-gb.fit(X_train, y_train)
+gb_baseline = HistGradientBoostingRegressor(random_state=RANDOM_STATE)
+gb_baseline.fit(X_train, y_train)
 ```
 
 2.  Compute the three evaluation metrics — **RMSE**, **MAE** and **R²** — on both the **training set** and the **test set**. Compare both sets of scores: what do you observe?
@@ -78,7 +78,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 
 for split, X, y in [("Train", X_train, y_train), ("Test", X_test, y_test)]:
-    y_pred = gb.predict(X)
+    y_pred = gb_baseline.predict(X)
     rmse = np.sqrt(mean_squared_error(y, y_pred))
     mae  = mean_absolute_error(y, y_pred)
     r2   = r2_score(y, y_pred)
@@ -218,19 +218,21 @@ print(f"Best CV R²  : {gs_step1.best_score_:.4f}")
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-df_step1 = pd.DataFrame(gs_step1.cv_results_)[[
-    "param_regressor__GB__max_iter",
-    "param_regressor__GB__learning_rate",
-    "mean_train_score",
-    "mean_test_score"
-]].rename(columns={
-    "param_regressor__GB__max_iter" : "max_iter",
-    "param_regressor__GB__learning_rate" : "learning_rate",
-    "mean_train_score" : "train_r2",
-    "mean_test_score" : "val_r2"
-})
 
-print(df_step1.sort_values("val_r2", ascending=False).to_string(index=False))
+def results_to_df(results_: dict):
+    pattern = "param_regressor__GB__"
+    pattern_len=len(pattern)
+    params = [key for key in results_.keys() if key.startswith(pattern)]
+    matching_keys =  params + ["mean_train_score", "mean_test_score"]
+    rename_params = {key: key[pattern_len:] for key in params}
+    rename_params["mean_train_score"] = "train_r2"
+    rename_params["mean_test_score"] = "val_r2"
+
+    results_df_ = pd.DataFrame(results_)[matching_keys].rename(columns=rename_params)
+
+    return results_df_.sort_values("val_r2", ascending=False)
+
+results_to_df(gs_step1.cv_results_)
 ```
 
 ::: callout-important
@@ -329,17 +331,7 @@ print(f"Best CV R²  : {gs_step2.best_score_:.4f}")
 #| eval: false
 import numpy as np
 
-df_step2 = pd.DataFrame(gs_step2.cv_results_)[[
-    "param_regressor__GB__max_depth",
-    "param_regressor__GB__min_samples_leaf",
-    "mean_train_score",
-    "mean_test_score",
-]].rename(columns={
-    "param_regressor__GB__max_depth" : "max_depth",
-    "param_regressor__GB__min_samples_leaf" : "min_samples_leaf",
-    "mean_train_score" : "train_r2",
-    "mean_test_score" : "val_r2",
-})
+df_step2 = results_to_df(gs_step2.cv_results_)
 
 
 depth_labels = df_step2["max_depth"].unique()
@@ -368,8 +360,8 @@ fig.suptitle("Step 2 — Joint optimisation of max_depth and min_samples_leaf",
 plt.tight_layout()
 plt.show()
 
-BEST_DEPTH    = gs_step2.best_params_["max_depth"]
-BEST_MIN_LEAF = gs_step2.best_params_["min_samples_leaf"]
+BEST_DEPTH    = gs_step2.best_params_["regressor__GB__max_depth"]
+BEST_MIN_LEAF = gs_step2.best_params_["regressor__GB__min_samples_leaf"]
 ```
 
 ### Step 3 — Optimise the regularisation parameters
@@ -381,30 +373,43 @@ BEST_MIN_LEAF = gs_step2.best_params_["min_samples_leaf"]
 #| code-summary: See the solution
 #| code-overflow: scroll
 #| eval: false
-l2_values    = [0.0, 0.1, 0.5, 1.0, 5.0]
-step3_results = []
 
-for l2 in l2_values:
-    model = HistGradientBoostingRegressor(
+param_grid_step3 = {
+    "regressor__GB__l2_regularization" : [0.0, 0.1, 0.3, 0.5, 1.0],
+}
+
+gb_pipeline_step3 = Pipeline([
+    ('preprocessing', preprocessor),
+    ('GB', HistGradientBoostingRegressor(
         max_iter=BEST_ITER,
         learning_rate=BEST_LR,
         max_depth=BEST_DEPTH,
         min_samples_leaf=BEST_MIN_LEAF,
-        l2_regularization=l2,
         random_state=RANDOM_STATE,
-    )
-    model.fit(X_train, y_train)
+        early_stopping=True
+    ))
+])
 
-    scores = gb_scores(model, X_train, y_train, X_test, y_test)
-    step3_results.append({
-        "l2_regularization": l2,
-        "train_rmse"       : scores["train"]["RMSE"],
-        "test_rmse"        : scores["test"]["RMSE"],
-        "train_r2"         : scores["train"]["R2"],
-        "test_r2"          : scores["test"]["R2"],
-    })
+model_step3 = TransformedTargetRegressor(
+    regressor=gb_pipeline_step3,
+    transformer=y_transformer
+)
 
-df_step3 = pd.DataFrame(step3_results)
+gs_step3 = GridSearchCV(
+    estimator=model_step3,
+    param_grid=param_grid_step3,
+    cv=4,
+    scoring="r2",
+    return_train_score=True,
+    n_jobs=-1,
+    verbose=1,
+)
+
+
+df_step3 = results_to_df(gs_step3.cv_results_)
+
+print("Best params :", gs_step3.best_params_)
+print(f"Best CV R²  : {gs_step3.best_score_:.4f}")
 
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(df_step3["l2_regularization"], df_step3["train_r2"], marker="o",
@@ -456,17 +461,17 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # Wrap in the same pipeline / TransformedTargetRegressor as the RF section
-gb_pipeline = Pipeline([
+gb_pipeline_final = Pipeline([
     ("preprocessor", preprocessor),  # same preprocessor as defined in the preprocessing section
     ("GB", gb_final),
 ])
 
-gb_model = TransformedTargetRegressor(
-    regressor=gb_pipeline,
+gb_model_final = TransformedTargetRegressor(
+    regressor=gb_pipeline_final,
     transformer=y_transformer  # same targettransformer as defined in preprocessing section
 )
 
-gb_model.fit(X_train, y_train)
+gb_model_final.fit(X_train, y_train)
 print("Final model trained.")
 ```
 
@@ -488,7 +493,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import numpy as np
 
 for split, X, y in [("Train", X_train, y_train), ("Test", X_test, y_test)]:
-    y_pred = gb_model.predict(X)
+    y_pred = gb_model_final.predict(X)
     rmse = np.sqrt(mean_squared_error(y, y_pred))
     mae  = mean_absolute_error(y, y_pred)
     r2   = r2_score(y, y_pred)
